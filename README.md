@@ -83,6 +83,7 @@ business data (products / orders / refunds / customers) for Text-to-SQL:
 
 ```bash
 bash db/apply-business.sh     # applies db/init/02-business.sql to the running container
+bash db/apply-vector.sh       # creates the pgvector document_chunks table + IVFFlat index
 ```
 
 ### 2. Build
@@ -118,7 +119,8 @@ curl -N -X POST localhost:8080/api/v1/chat/messages \
 | `CLAUDE_CLI_COMMAND`      | `claude`                             | Claude CLI executable        |
 | `CLAUDE_CLI_MODEL`        | _(empty)_                            | Optional model override      |
 | `CLAUDE_CLI_TIMEOUT`      | `60`                                 | Per-call timeout (seconds)   |
-| `OPENAI_API_KEY`          | _(empty)_                            | OpenAI API key (Phase 3 RAG) |
+| `EMBEDDING_PROVIDER`      | `hashing`                            | Embedding backend: `hashing` or `openai` |
+| `OPENAI_API_KEY`          | _(empty)_                            | OpenAI API key (embeddings when `EMBEDDING_PROVIDER=openai`) |
 | `S3_BUCKET`               | `workmate-docs`                      | S3 bucket for documents      |
 
 ---
@@ -175,10 +177,11 @@ workmate/
 │   ├── infrastructure/
 │   │   ├── jpa/                          # JPA entities, repository adapters
 │   │   ├── messaging/                    # KafkaEventPublisher
-│   │   ├── llm/                          # ClaudeCliLlmClient, MockLlmClient
+│   │   ├── llm/                          # ClaudeCliLlmClient, MockLlmClient, embedding adapters
 │   │   ├── database/                     # JSqlParserSqlValidator, JdbcQueryExecutor
-│   │   ├── tool/                         # SpringToolRegistry, QueryDatabaseTool
-│   │   └── storage/                      # LocalDocumentStorage (S3 in Phase 3)
+│   │   ├── persistence/pgvector/         # VectorSearchRepositoryAdapter (cosine search)
+│   │   ├── tool/                         # SpringToolRegistry, QueryDatabaseTool, SearchDocumentsTool
+│   │   └── storage/                      # LocalDocumentStorage (document text)
 │   └── interfaces/rest/
 │       ├── ChatController.java
 │       ├── DocumentController.java
@@ -215,11 +218,21 @@ with SSE, JPA adapters, Kafka domain-event publishing, configuration, and this d
 > Not yet: true token-level streaming from the model (the SSE layer still splits the final
 > answer); a read-only DB role; per-tenant `workspace_id` injection into generated SQL.
 
-### Phase 3 — RAG pipeline
-Document ingestion pipeline on Kafka: chunk PDFs/Markdown with
-`RecursiveCharacterTextSplitter`, generate embeddings via OpenAI API, store in pgvector.
-At query time retrieve top-k nearest chunks and inject as context into the Agent Loop.
-Add `KnowledgeSearchTool`.
+### Phase 3 — RAG pipeline (complete)
+- **Async indexing on Kafka** — uploading a document persists its text and publishes
+  `DocumentUploadedEvent`; `KafkaDocumentIndexingConsumer` consumes it off the request path,
+  and `DocumentIndexingService` chunks → embeds → stores vectors → marks the document indexed.
+- **`knowledge` domain** — `ChunkingService` (sliding-window) plus `EmbeddingService` and
+  `VectorSearchRepository` ports.
+- **Embedding adapters** — `HashingEmbeddingService` (local, deterministic, no cost, default)
+  and `OpenAiEmbeddingService` (`text-embedding-3-small`); switch via `EMBEDDING_PROVIDER`.
+- **pgvector retrieval** — `VectorSearchRepositoryAdapter` does workspace-scoped cosine search
+  (IVFFlat index); exposed to the agent as `SearchDocumentsTool`. The agent picks
+  `search_documents` for unstructured questions and `query_database` for structured ones.
+
+> Note: the local hashing embedder approximates relevance by word overlap; set
+> `EMBEDDING_PROVIDER=openai` for real semantic search. PDF parsing (text/markdown only for now)
+> and chunk re-ranking are future refinements.
 
 ### Phase 4 — Deploy
 Dockerfile, Docker Compose (Postgres + pgvector + Kafka + app), Kubernetes manifests
