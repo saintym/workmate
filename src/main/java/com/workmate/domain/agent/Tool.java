@@ -1,19 +1,26 @@
 package com.workmate.domain.agent;
 
 /**
- * A capability that an AI agent can invoke (e.g. web-search, code-execution, SQL query).
+ * A capability an AI agent can invoke during the agent loop (e.g. SQL query, document
+ * search, employee lookup).
  *
- * <p><b>Phase 2 placeholder</b> — tool registration, permission checks, and schema
- * validation are deferred to Phase 2.
- *
- * <p>Pure Java — no framework dependencies.
+ * <p>A tool advertises itself via a {@link ToolDefinition} (so the LLM knows it exists and
+ * how to call it) and performs work via {@link #execute(String)}. Implementations live in
+ * the infrastructure layer; this port is pure Java.
  */
 public interface Tool {
 
     /**
-     * @return the unique name used to identify this tool in agent prompts
+     * @return this tool's advertised specification (name, description, input schema)
      */
-    String name();
+    ToolDefinition definition();
+
+    /**
+     * @return the unique name used to identify this tool in agent prompts and tool calls
+     */
+    default String name() {
+        return definition().name();
+    }
 
     /**
      * Execute the tool with the given input.
