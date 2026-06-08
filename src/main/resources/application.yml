@@ -29,9 +29,7 @@ spring:
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
     consumer:
       group-id: workmate-indexing
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.trusted.packages: "com.workmate.*"
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
 # ── Server ───────────────────────────────────────────────────────────────────
 server:
@@ -69,6 +67,8 @@ app:
   openai:
     # Phase 3: OpenAI embeddings (RAG)
     api-key: ${OPENAI_API_KEY:}
+  embedding:
+    provider: ${EMBEDDING_PROVIDER:hashing}
   aws:
     s3:
       # Phase 2: document binary storage
