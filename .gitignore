@@ -29,6 +29,10 @@ Thumbs.db
 .claude/
 .omc/
 
+# Personal study / planning notes (kept local, not published)
+docs/
+Workmate-*.md
+
 # Env / secrets
 .env
 *.local

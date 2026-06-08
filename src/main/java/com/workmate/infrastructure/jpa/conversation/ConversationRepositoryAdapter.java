@@ -31,8 +31,11 @@ public class ConversationRepositoryAdapter implements ConversationRepository {
 
     @Override
     public Conversation save(Conversation conversation) {
-        ConversationJpaEntity saved = jpaRepository.save(mapper.toEntity(conversation));
-        return mapper.toDomain(saved);
+        // Persist via the JPA mapping, but return the ORIGINAL aggregate so its pending
+        // domain events survive for the application service to publish. Re-mapping through
+        // toDomain() would yield a reconstituted instance with an empty event buffer.
+        jpaRepository.save(mapper.toEntity(conversation));
+        return conversation;
     }
 
     @Override

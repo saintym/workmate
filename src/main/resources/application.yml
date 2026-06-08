@@ -24,7 +24,9 @@ spring:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      # Events are serialized to JSON by KafkaEventPublisher (it controls the wire format,
+      # decoupling the domain model from the message contract), then sent as plain strings.
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
     consumer:
       group-id: workmate-indexing
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
