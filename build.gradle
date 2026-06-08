@@ -33,6 +33,9 @@ dependencies {
     // --- Messaging (Kafka, event-driven) ---
     implementation 'org.springframework.kafka:spring-kafka'
 
+    // --- Text-to-SQL safety: parse & validate generated SQL before execution ---
+    implementation 'com.github.jsqlparser:jsqlparser:4.9'
+
     // --- Monitoring ---
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-registry-prometheus'
