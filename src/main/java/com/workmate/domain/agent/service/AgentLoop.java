@@ -9,6 +9,7 @@ import com.workmate.domain.agent.LlmResponse;
 import com.workmate.domain.agent.MaxIterationsPolicy;
 import com.workmate.domain.agent.Tool;
 import com.workmate.domain.agent.ToolCall;
+import com.workmate.domain.agent.ToolInput;
 import com.workmate.domain.agent.ToolNotFoundException;
 import com.workmate.domain.agent.ToolRegistry;
 import com.workmate.domain.agent.ToolResult;
@@ -89,7 +90,9 @@ public final class AgentLoop {
             for (ToolCall call : response.toolCalls()) {
                 Tool tool = toolRegistry.find(call.toolName())
                         .orElseThrow(() -> new ToolNotFoundException(call.toolName()));
-                ToolResult result = tool.execute(call.inputJson());
+                // Tenant context comes from the conversation, never from the LLM — so
+                // tenant-scoped tools cannot be tricked into crossing workspaces.
+                ToolResult result = tool.execute(new ToolInput(conversation.workspaceId(), call.inputJson()));
                 conversation.addMessage(MessageRole.TOOL, MessageContent.of(renderToolResult(call, result)));
             }
         }

@@ -23,10 +23,10 @@ public interface Tool {
     }
 
     /**
-     * Execute the tool with the given input.
+     * Execute the tool with the given input (LLM arguments + tenant context).
      *
-     * @param inputJson a JSON-encoded string containing the tool's input parameters
+     * @param input the tool arguments and the workspace the call runs for
      * @return the result of execution; never {@code null}
      */
-    ToolResult execute(String inputJson);
+    ToolResult execute(ToolInput input);
 }

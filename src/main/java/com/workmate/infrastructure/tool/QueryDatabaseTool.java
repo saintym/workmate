@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.workmate.domain.agent.Tool;
 import com.workmate.domain.agent.ToolDefinition;
+import com.workmate.domain.agent.ToolInput;
 import com.workmate.domain.agent.ToolResult;
 import com.workmate.domain.database.QueryExecutor;
 import com.workmate.domain.database.QueryResult;
@@ -74,10 +75,12 @@ public class QueryDatabaseTool implements Tool {
     }
 
     @Override
-    public ToolResult execute(String inputJson) {
+    public ToolResult execute(ToolInput toolInput) {
         try {
-            // Parse input
-            JsonNode input = objectMapper.readTree(inputJson);
+            // workspaceId is available via toolInput.workspaceId() for tenant scoping;
+            // the business tables are shared in this demo, so SELECT/whitelist/LIMIT remain
+            // the safety boundary. TODO: inject workspace_id predicates into the SQL.
+            JsonNode input = objectMapper.readTree(toolInput.json());
             JsonNode sqlNode = input.get("sql");
             if (sqlNode == null || sqlNode.isNull() || sqlNode.asText().isBlank()) {
                 return errorResult("Missing required parameter: sql");

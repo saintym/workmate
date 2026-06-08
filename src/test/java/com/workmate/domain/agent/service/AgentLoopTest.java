@@ -9,6 +9,7 @@ import com.workmate.domain.agent.MaxIterationsPolicy;
 import com.workmate.domain.agent.Tool;
 import com.workmate.domain.agent.ToolCall;
 import com.workmate.domain.agent.ToolDefinition;
+import com.workmate.domain.agent.ToolInput;
 import com.workmate.domain.agent.ToolNotFoundException;
 import com.workmate.domain.agent.ToolRegistry;
 import com.workmate.domain.agent.ToolResult;
@@ -76,7 +77,7 @@ class AgentLoopTest {
         }
 
         @Override
-        public ToolResult execute(String inputJson) {
+        public ToolResult execute(ToolInput input) {
             executions.incrementAndGet();
             return result;
         }
