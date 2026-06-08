@@ -1,6 +1,8 @@
 package com.workmate.application.chat;
 
 import com.workmate.application.common.ResourceNotFoundException;
+import com.workmate.domain.agent.AgentException;
+import com.workmate.domain.agent.service.AgentLoop;
 import com.workmate.domain.common.DomainException;
 import com.workmate.domain.common.EventPublisher;
 import com.workmate.domain.conversation.Conversation;
@@ -10,6 +12,8 @@ import com.workmate.domain.conversation.Message;
 import com.workmate.domain.conversation.MessageContent;
 import com.workmate.domain.conversation.MessageRole;
 import com.workmate.domain.workspace.WorkspaceId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,22 +24,28 @@ import java.util.UUID;
 /**
  * Application service handling chat CQRS use cases.
  *
- * <p>Coordinates the {@link ConversationRepository} and {@link EventPublisher} ports.
- * All domain logic stays in the {@link Conversation} aggregate; this class is purely
- * orchestration.
+ * <p>Coordinates the {@link ConversationRepository}, {@link EventPublisher}, and
+ * {@link AgentLoop} ports. All domain logic stays in the {@link Conversation} aggregate
+ * and the agent loop; this class is purely orchestration.
  */
 @Service
 public class ChatService {
 
+    private static final Logger log = LoggerFactory.getLogger(ChatService.class);
+
     private final ConversationRepository conversationRepository;
     private final EventPublisher eventPublisher;
+    private final AgentLoop agentLoop;
 
     public ChatService(ConversationRepository conversationRepository,
-                       EventPublisher eventPublisher) {
+                       EventPublisher eventPublisher,
+                       AgentLoop agentLoop) {
         this.conversationRepository = Objects.requireNonNull(conversationRepository,
                 "conversationRepository must not be null");
         this.eventPublisher = Objects.requireNonNull(eventPublisher,
                 "eventPublisher must not be null");
+        this.agentLoop = Objects.requireNonNull(agentLoop,
+                "agentLoop must not be null");
     }
 
     /**
@@ -43,8 +53,15 @@ public class ChatService {
      *
      * <p>When {@code cmd.conversationId()} is {@code null} a new conversation is started in
      * the given workspace. Otherwise the existing conversation is loaded and the workspace
-     * ownership is verified for tenant isolation. A user message and a stub assistant reply
-     * are appended, the aggregate is persisted, and domain events are published.
+     * ownership is verified for tenant isolation. The user message is appended, then the
+     * {@link AgentLoop} runs: it may invoke tools and appends the final {@code ASSISTANT}
+     * message to the conversation. The aggregate is then persisted and domain events are
+     * published.
+     *
+     * <p>If the agent loop raises an {@link AgentException} (e.g.
+     * {@link com.workmate.domain.agent.MaxIterationsExceededException}), a friendly Korean
+     * fallback message is appended so the user always receives a reply and the conversation
+     * is still persisted.
      *
      * @param cmd the send-message command; must not be null
      * @return the updated conversation with all messages
@@ -68,9 +85,13 @@ public class ChatService {
 
         conversation.addMessage(MessageRole.USER, MessageContent.of(cmd.content()));
 
-        // TODO Phase 2: replace stub with AgentLoop
-        conversation.addMessage(MessageRole.ASSISTANT,
-                MessageContent.of("(stub) echo: " + cmd.content()));
+        try {
+            agentLoop.run(conversation);
+        } catch (AgentException ex) {
+            log.error("Agent loop failed for conversation {}: {}", conversation.id(), ex.getMessage(), ex);
+            conversation.addMessage(MessageRole.ASSISTANT,
+                    MessageContent.of("죄송합니다. 요청을 처리하지 못했습니다."));
+        }
 
         conversation = conversationRepository.save(conversation);
         eventPublisher.publishAll(conversation.pullDomainEvents());

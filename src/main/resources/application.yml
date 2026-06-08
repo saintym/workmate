@@ -55,8 +55,14 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
-# ── Application-specific settings (reserved for later phases) ────────────────
+# ── Application-specific settings ────────────────────────────────────────────
 app:
+  llm:
+    provider: ${LLM_PROVIDER:claude-cli}   # claude-cli | mock
+    claude-cli:
+      command: ${CLAUDE_CLI_COMMAND:claude}
+      model: ${CLAUDE_CLI_MODEL:}
+      timeout-seconds: ${CLAUDE_CLI_TIMEOUT:60}
   anthropic:
     # Phase 2: Claude / AgentLoop integration
     api-key: ${ANTHROPIC_API_KEY:}
