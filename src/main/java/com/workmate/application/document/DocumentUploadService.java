@@ -62,7 +62,7 @@ public class DocumentUploadService {
     public UploadDocumentResult handle(UploadDocumentCommand cmd) {
         Objects.requireNonNull(cmd, "cmd must not be null");
 
-        String key = documentStorage.store(cmd.workspaceId(), cmd.name(), cmd.contentType());
+        String key = documentStorage.store(cmd.workspaceId(), cmd.name(), cmd.contentType(), cmd.content());
 
         Document document = Document.upload(
                 WorkspaceId.of(cmd.workspaceId()),

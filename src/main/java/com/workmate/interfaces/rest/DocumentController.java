@@ -64,7 +64,8 @@ public class DocumentController {
         log.debug("uploadDocument workspaceId={} name={}", workspaceId, request.name());
 
         UploadDocumentCommand cmd = new UploadDocumentCommand(
-                workspaceId, request.name(), request.contentType(), request.sizeBytes());
+                workspaceId, request.name(), request.contentType(), request.sizeBytes(),
+                request.content());
 
         return Mono.fromCallable(() -> documentUploadService.handle(cmd))
                 .subscribeOn(Schedulers.boundedElastic())
