@@ -1,19 +1,24 @@
 package com.workmate.infrastructure.jpa.knowledge;
 
-import com.workmate.domain.knowledge.ChunkId;
-import com.workmate.domain.knowledge.ChunkIndex;
 import com.workmate.domain.knowledge.Document;
-import com.workmate.domain.knowledge.DocumentChunk;
 import com.workmate.domain.knowledge.DocumentId;
 import com.workmate.domain.knowledge.DocumentName;
 import com.workmate.domain.knowledge.DocumentStatus;
-import com.workmate.domain.knowledge.Embedding;
 import com.workmate.domain.knowledge.S3Key;
 import com.workmate.domain.workspace.WorkspaceId;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/**
+ * Maps between {@link DocumentJpaEntity} and the {@link Document} domain aggregate.
+ *
+ * <p>Chunk content is no longer loaded through JPA. Document chunks live exclusively
+ * in the {@code document_chunks} table managed by
+ * {@code infrastructure.persistence.pgvector.VectorSearchRepositoryAdapter} via
+ * raw JDBC + pgvector. Reconstituted documents therefore carry an empty chunk list —
+ * callers that need chunks must query the vector search repository directly.
+ */
 @Component
 public class DocumentMapper {
 
@@ -25,31 +30,10 @@ public class DocumentMapper {
         entity.setS3Key(domain.s3Key().value());
         entity.setStatus(domain.status().name());
         entity.setCreatedAt(domain.createdAt());
-
-        List<DocumentChunkJpaEntity> chunkEntities = domain.chunks().stream()
-                .map(c -> toChunkEntity(c, entity))
-                .toList();
-        entity.getChunks().clear();
-        entity.getChunks().addAll(chunkEntities);
-
-        return entity;
-    }
-
-    private DocumentChunkJpaEntity toChunkEntity(DocumentChunk domain, DocumentJpaEntity documentEntity) {
-        DocumentChunkJpaEntity entity = new DocumentChunkJpaEntity();
-        entity.setId(domain.id().value());
-        entity.setDocument(documentEntity);
-        entity.setChunkIndex(domain.index().value());
-        entity.setContent(domain.content());
-        entity.setEmbedding(domain.embedding() != null ? domain.embedding().vector() : null);
         return entity;
     }
 
     public Document toDomain(DocumentJpaEntity entity) {
-        List<DocumentChunk> chunks = entity.getChunks().stream()
-                .map(this::toChunkDomain)
-                .toList();
-
         return Document.reconstitute(
                 DocumentId.of(entity.getId()),
                 WorkspaceId.of(entity.getWorkspaceId()),
@@ -57,19 +41,7 @@ public class DocumentMapper {
                 S3Key.of(entity.getS3Key()),
                 DocumentStatus.valueOf(entity.getStatus()),
                 entity.getCreatedAt(),
-                chunks
-        );
-    }
-
-    private DocumentChunk toChunkDomain(DocumentChunkJpaEntity entity) {
-        float[] raw = entity.getEmbedding();
-        Embedding embedding = (raw != null && raw.length > 0) ? new Embedding(raw) : null;
-
-        return DocumentChunk.reconstitute(
-                ChunkId.of(entity.getId()),
-                ChunkIndex.of(entity.getChunkIndex()),
-                entity.getContent(),
-                embedding
+                List.of()
         );
     }
 }
