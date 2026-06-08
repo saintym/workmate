@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: workmate
+
+  # ── Datasource (PostgreSQL + pgvector) ─────────────────────────────────────
+  datasource:
+    url: ${DATASOURCE_URL:jdbc:postgresql://localhost:5432/workmate}
+    username: ${DATASOURCE_USERNAME:workmate}
+    password: ${DATASOURCE_PASSWORD:workmate}
+    driver-class-name: org.postgresql.Driver
+
+  # ── JPA / Hibernate ─────────────────────────────────────────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: validate   # use 'update' for local schema iteration; never on prod
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # ── Kafka (event-driven messaging) ──────────────────────────────────────────
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: workmate-indexing
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.workmate.*"
+
+# ── Server ───────────────────────────────────────────────────────────────────
+server:
+  port: 8080
+
+# ── Actuator / Observability ─────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: workmate
+
+# ── SpringDoc / Swagger UI ───────────────────────────────────────────────────
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+# ── Application-specific settings (reserved for later phases) ────────────────
+app:
+  anthropic:
+    # Phase 2: Claude / AgentLoop integration
+    api-key: ${ANTHROPIC_API_KEY:}
+  openai:
+    # Phase 3: OpenAI embeddings (RAG)
+    api-key: ${OPENAI_API_KEY:}
+  aws:
+    s3:
+      # Phase 2: document binary storage
+      bucket: ${S3_BUCKET:workmate-docs}

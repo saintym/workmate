@@ -1,0 +1,40 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.project
+.classpath
+.settings/
+out/
+bin/
+
+# Spring Boot
+*.log
+*.pid
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local tooling (Claude Code / oh-my-claudecode)
+.claude/
+.omc/
+
+# Env / secrets
+.env
+*.local
+application-local.yml
+application-secret.yml
+
+# Test / coverage
+.test-results/
+coverage/
