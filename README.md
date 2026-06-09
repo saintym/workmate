@@ -119,7 +119,7 @@ curl -N -X POST localhost:8080/api/v1/chat/messages \
 | `CLAUDE_CLI_COMMAND`      | `claude`                             | Claude CLI executable        |
 | `CLAUDE_CLI_MODEL`        | _(empty)_                            | Optional model override      |
 | `CLAUDE_CLI_TIMEOUT`      | `60`                                 | Per-call timeout (seconds)   |
-| `EMBEDDING_PROVIDER`      | `hashing`                            | Embedding backend: `hashing` or `openai` |
+| `EMBEDDING_PROVIDER`      | `hashing`                            | Embedding backend: `hashing` (local approx), `ollama` (local semantic), or `openai` |
 | `OPENAI_API_KEY`          | _(empty)_                            | OpenAI API key (embeddings when `EMBEDDING_PROVIDER=openai`) |
 | `S3_BUCKET`               | `workmate-docs`                      | S3 bucket for documents      |
 
@@ -230,9 +230,10 @@ with SSE, JPA adapters, Kafka domain-event publishing, configuration, and this d
   (IVFFlat index); exposed to the agent as `SearchDocumentsTool`. The agent picks
   `search_documents` for unstructured questions and `query_database` for structured ones.
 
-> Note: the local hashing embedder approximates relevance by word overlap; set
-> `EMBEDDING_PROVIDER=openai` for real semantic search. PDF parsing (text/markdown only for now)
-> and chunk re-ranking are future refinements.
+> Note: the default hashing embedder approximates relevance by word overlap (no real meaning).
+> For genuine semantic search set `EMBEDDING_PROVIDER=ollama` (local, free, `nomic-embed-text`
+> 768-dim — apply `db/init/03-vector-ollama.sql`) or `EMBEDDING_PROVIDER=openai`. PDF parsing
+> (text/markdown only for now) and chunk re-ranking are future refinements.
 
 ### Phase 4 — Deploy
 Dockerfile, Docker Compose (Postgres + pgvector + Kafka + app), Kubernetes manifests
