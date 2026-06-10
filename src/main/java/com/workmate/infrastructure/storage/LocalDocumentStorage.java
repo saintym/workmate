@@ -3,6 +3,7 @@ package com.workmate.infrastructure.storage;
 import com.workmate.application.port.DocumentStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -18,8 +19,13 @@ import java.util.UUID;
  * <p>Stands in for S3 in the demo: documents are written to and read from
  * {@code <java.io.tmpdir>/workmate-docs/<key>}. The key encodes workspace, document UUID,
  * and original file name so it is deterministically addressable.
+ *
+ * <p>Default for single-process local runs. It does NOT work when the API and indexing
+ * worker run as separate pods (no shared filesystem) — use {@code app.storage.provider=db}
+ * ({@link DbDocumentStorage}) in that case.
  */
 @Component
+@ConditionalOnProperty(name = "app.storage.provider", havingValue = "local", matchIfMissing = true)
 public class LocalDocumentStorage implements DocumentStorage {
 
     private static final Logger log = LoggerFactory.getLogger(LocalDocumentStorage.class);
