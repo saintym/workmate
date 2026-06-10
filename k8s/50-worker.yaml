@@ -1,0 +1,59 @@
+# Indexing worker node: consumes Kafka and runs RAG indexing (app.worker.enabled=true).
+# Scales independently from the API — the whole point of splitting them.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workmate-worker
+  namespace: workmate
+  labels:
+    app: workmate-worker
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0            # single-node kind has no spare memory for surge pods
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: workmate-worker
+  template:
+    metadata:
+      labels:
+        app: workmate-worker
+    spec:
+      containers:
+        - name: workmate
+          image: workmate:s1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080      # actuator only (health probes)
+          envFrom:
+            - configMapRef:
+                name: workmate-config
+          env:
+            - name: DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: workmate-secrets
+                  key: DATASOURCE_PASSWORD
+            - name: APP_WORKER_ENABLED
+              value: "true"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 150m
+              memory: 320Mi
+            limits:
+              memory: 600Mi

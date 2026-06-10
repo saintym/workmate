@@ -1,0 +1,27 @@
+# Shared app configuration + secrets for both the API and worker deployments.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workmate-config
+  namespace: workmate
+data:
+  DATASOURCE_URL: jdbc:postgresql://postgres.workmate.svc.cluster.local:5432/workmate
+  DATASOURCE_USERNAME: workmate
+  KAFKA_BOOTSTRAP_SERVERS: kafka.workmate.svc.cluster.local:9092
+  SPRING_JPA_HIBERNATE_DDL_AUTO: update
+  # In-cluster we cannot reach the host Claude CLI or Ollama, so use the offline
+  # mock LLM + hashing embeddings. This deployment proves infra/scale, not model quality.
+  LLM_PROVIDER: mock
+  EMBEDDING_PROVIDER: hashing
+  # API and worker are separate pods (no shared filesystem) — store doc text in Postgres.
+  STORAGE_PROVIDER: db
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: workmate-secrets
+  namespace: workmate
+type: Opaque
+stringData:
+  db-password: workmate            # demo only — use a real secret manager in production
+  DATASOURCE_PASSWORD: workmate

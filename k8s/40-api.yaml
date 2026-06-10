@@ -1,0 +1,91 @@
+# API node: serves REST/SSE. Does NOT consume Kafka (app.worker.enabled=false).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workmate-api
+  namespace: workmate
+  labels:
+    app: workmate-api
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0            # single-node kind has no spare memory for surge pods
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: workmate-api
+  template:
+    metadata:
+      labels:
+        app: workmate-api
+    spec:
+      containers:
+        - name: workmate
+          image: workmate:s1
+          imagePullPolicy: IfNotPresent   # kind load docker-image (no registry pull)
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: workmate-config
+          env:
+            - name: DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: workmate-secrets
+                  key: DATASOURCE_PASSWORD
+            - name: APP_WORKER_ENABLED
+              value: "false"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 150m
+              memory: 320Mi
+            limits:
+              memory: 600Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workmate-api
+  namespace: workmate
+spec:
+  selector:
+    app: workmate-api
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+# Optional autoscaling (needs metrics-server in the cluster).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: workmate-api
+  namespace: workmate
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: workmate-api
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

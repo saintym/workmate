@@ -1,0 +1,97 @@
+# PostgreSQL + pgvector as a StatefulSet (stable identity + persistent volume).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: workmate
+data:
+  # Runs once on first init: enable pgvector and create the vector table
+  # (the hashing embedder used in-cluster is 1536-dim). Platform tables are
+  # created by Hibernate (ddl-auto=update) on app startup.
+  01-init.sql: |
+    CREATE EXTENSION IF NOT EXISTS vector;
+    CREATE TABLE IF NOT EXISTS document_chunks (
+        id           uuid PRIMARY KEY,
+        document_id  uuid NOT NULL,
+        workspace_id uuid NOT NULL,
+        chunk_index  int  NOT NULL,
+        content      text NOT NULL,
+        embedding    vector(1536)
+    );
+    CREATE INDEX IF NOT EXISTS idx_doc_chunks_ws  ON document_chunks(workspace_id);
+    CREATE INDEX IF NOT EXISTS idx_doc_chunks_doc ON document_chunks(document_id);
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: workmate
+spec:
+  clusterIP: None          # headless, for StatefulSet stable DNS
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: workmate
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg16
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: workmate
+            - name: POSTGRES_USER
+              value: workmate
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: workmate-secrets
+                  key: db-password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "workmate", "-d", "workmate"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: init
+          configMap:
+            name: postgres-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
