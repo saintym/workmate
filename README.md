@@ -235,6 +235,17 @@ with SSE, JPA adapters, Kafka domain-event publishing, configuration, and this d
 > 768-dim — apply `db/init/03-vector-ollama.sql`) or `EMBEDDING_PROVIDER=openai`. PDF parsing
 > (text/markdown only for now) and chunk re-ranking are future refinements.
 
-### Phase 4 — Deploy
-Dockerfile, Docker Compose (Postgres + pgvector + Kafka + app), Kubernetes manifests
-(Deployment, Service, ConfigMap, HorizontalPodAutoscaler), and GitHub Actions CI pipeline.
+### Phase 4 — Deploy (complete)
+- **Containerized** with a multi-stage `Dockerfile` (one image, runs as API or worker by env).
+- **Kubernetes** (`k8s/`): Postgres (StatefulSet + pgvector init), Kafka (KRaft), shared
+  ConfigMap/Secret, **API Deployment (2 replicas)** and **worker Deployment** split via
+  `app.worker.enabled` so they **scale independently** (verified on a local `kind` cluster —
+  scaled the worker 2→4 with the API untouched).
+- **DB-backed document storage** (`DbDocumentStorage`) so the API and worker pods share
+  uploaded text — surfaced by an actual cross-pod indexing failure with filesystem storage.
+- **GitHub Actions** (`.github/workflows/ci.yml`): build + test on every push/PR, and
+  build + push the image to GHCR on `main`.
+
+> In-cluster runs use `LLM_PROVIDER=mock` + `EMBEDDING_PROVIDER=hashing` (the host Claude CLI
+> and Ollama aren't reachable from pods); the deployment proves infra/scaling, while model
+> quality was verified locally. Not yet: cloud (AWS RDS/MSK/EKS), metrics-server for live HPA.
