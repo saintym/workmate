@@ -1,0 +1,16 @@
+.git
+.gradle
+build
+*.iml
+.idea
+.vscode
+.DS_Store
+.omc
+.claude
+docs
+db
+k8s
+*.md
+Dockerfile
+.dockerignore
+.github
