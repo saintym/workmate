@@ -6,6 +6,7 @@ import com.workmate.application.document.DocumentIndexingService;
 import com.workmate.domain.knowledge.DocumentId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -23,8 +24,13 @@ import java.util.UUID;
  * poison message never kills the listener partition assignment.
  *
  * <p>TODO: add retry + dead-letter topic support for transient failures.
+ *
+ * <p>Enabled only on indexing-worker nodes. Set {@code app.worker.enabled=false} on the API
+ * deployment so it does not consume, and {@code true} on the worker deployment — letting the
+ * two scale independently. Defaults to enabled (single-process local runs consume as before).
  */
 @Component
+@ConditionalOnProperty(name = "app.worker.enabled", havingValue = "true", matchIfMissing = true)
 public class KafkaDocumentIndexingConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaDocumentIndexingConsumer.class);
